@@ -4,7 +4,7 @@
 <h1>Hello World</h1>
 <script type="text/javascript">
     texts = ["audio 1", "audio 2", "audio 3"];
-    document.getElementById("random_audio").value = texts[Math.floor(Math.random()*texts.length)];
+    document.getElementById("random_audio").innerHTML = texts[Math.floor(Math.random()*texts.length)];
 </script>
 <p id="random_audio"></p>
 </body>
