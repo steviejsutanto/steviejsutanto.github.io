@@ -1,0 +1,7 @@
+.DS_Store
+tmp/
+music/
+*.reapeaks
+PersonalWebsite-source-assets/
+source-assets/
+node_modules/

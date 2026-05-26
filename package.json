@@ -1,0 +1,10 @@
+{
+  "name": "steviejsutanto.github.io",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "portfolio:add": "node scripts/add-portfolio-work.mjs",
+    "portfolio:build": "node scripts/build-portfolio.mjs",
+    "serve": "npx --yes serve ."
+  }
+}
