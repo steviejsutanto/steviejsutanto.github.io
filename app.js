@@ -1,10 +1,14 @@
 const state = {
   works: [],
   activeWorkId: null,
+  audioMode: window.matchMedia("(hover: none) and (pointer: coarse)").matches ? "single" : "spatial",
   soundEnabled: false,
   bgAudio: null,
   spatialSources: new Map(),
+  singleAudio: null,
+  singleWorkId: null,
   pointerInsideStage: false,
+  selectionPinned: false,
   audioPoint: { x: 50, y: 50 },
   activeBg: "a",
   activeBgImage: "",
@@ -29,12 +33,15 @@ init();
 async function init() {
   try {
     state.works = await loadWorks();
+    selectors.stage.dataset.audioMode = state.audioMode;
     renderConstellation();
     renderLines();
     setPreview(state.works[0], false);
-    setupConstellationPointer();
     setupAudio();
-    setupScrollAudio();
+    if (state.audioMode === "spatial") {
+      setupConstellationPointer();
+      setupScrollAudio();
+    }
     setupWorksNavigation();
     window.addEventListener("resize", debounce(renderLines, 120));
   } catch (error) {
@@ -58,6 +65,44 @@ async function loadWorks() {
 }
 
 function setupAudio() {
+  if (state.audioMode === "single") {
+    state.singleAudio = new Audio();
+    state.singleAudio.loop = true;
+    state.singleAudio.preload = "none";
+  } else {
+    setupSpatialAudio();
+  }
+
+  selectors.soundToggle.addEventListener("click", async () => {
+    state.soundEnabled = !state.soundEnabled;
+    document.body.classList.toggle("sound-on", state.soundEnabled);
+    selectors.soundToggle.setAttribute("aria-pressed", String(state.soundEnabled));
+    selectors.soundToggle.setAttribute("aria-label", state.soundEnabled ? "Turn sound off" : "Turn sound on");
+
+    if (state.audioMode === "single") {
+      if (state.soundEnabled) {
+        await playSelectedSingleWork();
+      } else {
+        pauseSingleAudio();
+      }
+      return;
+    }
+
+    if (state.soundEnabled) {
+      if (state.bgAudio) {
+        state.bgAudio.play().catch(() => {
+          state.bgTarget = 0;
+        });
+      }
+      await startSpatialSources();
+      updateSpatialTargets();
+    } else {
+      fadeSpatialAudio();
+    }
+  });
+}
+
+function setupSpatialAudio() {
   const bgWork = state.works.find((work) => work.id === "my-computers-interpretation-of-falling" && work.excerptSrc)
     || state.works.find((work) => work.excerptSrc);
   if (bgWork) {
@@ -82,25 +127,29 @@ function setupAudio() {
       failed: false
     });
   });
+}
 
-  selectors.soundToggle.addEventListener("click", async () => {
-    state.soundEnabled = !state.soundEnabled;
-    document.body.classList.toggle("sound-on", state.soundEnabled);
-    selectors.soundToggle.setAttribute("aria-pressed", String(state.soundEnabled));
-    selectors.soundToggle.setAttribute("aria-label", state.soundEnabled ? "Turn sound off" : "Turn sound on");
+async function playSelectedSingleWork() {
+  const work = state.works.find((candidate) => candidate.id === state.activeWorkId);
+  if (!state.soundEnabled || !state.singleAudio || !work?.excerptSrc) {
+    return;
+  }
 
-    if (state.soundEnabled) {
-      if (state.bgAudio) {
-        state.bgAudio.play().catch(() => {
-          state.bgTarget = 0;
-        });
-      }
-      await startSpatialSources();
-      updateSpatialTargets();
-    } else {
-      fadeSpatialAudio();
-    }
-  });
+  if (state.singleWorkId !== work.id) {
+    state.singleAudio.pause();
+    state.singleAudio.src = work.excerptSrc;
+    state.singleWorkId = work.id;
+  } else if (!state.singleAudio.paused) {
+    return;
+  }
+
+  await state.singleAudio.play().catch(() => {});
+}
+
+function pauseSingleAudio() {
+  if (state.singleAudio && !state.singleAudio.paused) {
+    state.singleAudio.pause();
+  }
 }
 
 async function startSpatialSources() {
@@ -220,33 +269,30 @@ function pauseSpatialSources() {
 function renderConstellation() {
   const nodes = document.createDocumentFragment();
   state.works.forEach((work) => {
-    const hasFullWorkLink = Boolean(work.primaryLink);
-    const node = document.createElement(hasFullWorkLink ? "a" : "button");
+    const node = document.createElement("button");
     node.className = "work-node";
-    if (hasFullWorkLink) {
-      node.href = work.primaryLink;
-      node.target = "_blank";
-      node.rel = "noopener";
-    } else {
-      node.type = "button";
-    }
+    node.type = "button";
     node.dataset.id = work.id;
     node.style.setProperty("--x", work.position.x);
     node.style.setProperty("--y", work.position.y);
     node.style.setProperty("--z", work.position.z);
     node.style.setProperty("--z-index", Math.round(work.position.z * 20));
     node.style.setProperty("--proximity-scale", "1");
-    node.setAttribute(
-      "aria-label",
-      hasFullWorkLink
-        ? `${work.title}, ${work.year}. Open full work in a new tab.`
-        : `${work.title}, ${work.year}. Select this work for listening.`
-    );
+    node.setAttribute("aria-label", `${work.title}, ${work.year}. Select this work for listening.`);
     node.innerHTML = `<span>${escapeHtml(work.title)}</span>`;
 
-    node.addEventListener("mouseenter", () => activateWork(work));
-    node.addEventListener("focus", () => activateWork(work));
-    node.addEventListener("blur", () => deactivateWork());
+    if (state.audioMode === "single") {
+      node.addEventListener("click", () => selectSingleWork(work));
+    } else {
+      node.addEventListener("mouseenter", () => {
+        if (!state.selectionPinned) {
+          activateWork(work);
+        }
+      });
+      node.addEventListener("focus", () => activateWork(work));
+      node.addEventListener("click", () => pinWork(work));
+      node.addEventListener("blur", () => deactivateWork());
+    }
 
     nodes.appendChild(node);
   });
@@ -258,9 +304,11 @@ function setupConstellationPointer() {
     const point = getStagePoint(event);
     state.pointerInsideStage = true;
     state.audioPoint = point;
-    const nearest = findNearestWork(point);
-    if (nearest) {
-      setActiveWork(nearest);
+    if (!state.selectionPinned) {
+      const nearest = findNearestWork(point);
+      if (nearest) {
+        setActiveWork(nearest);
+      }
     }
     updateTitleProximity(point);
     updateSpatialTargets();
@@ -268,6 +316,7 @@ function setupConstellationPointer() {
 
   const handleLeave = () => {
     state.pointerInsideStage = false;
+    state.selectionPinned = false;
     document.querySelectorAll(".work-node").forEach((node) => node.classList.remove("is-active"));
     resetTitleProximity();
     fadeSpatialAudio();
@@ -352,6 +401,16 @@ function activateWork(work) {
   updateSpatialTargets();
 }
 
+function selectSingleWork(work) {
+  setActiveWork(work);
+  playSelectedSingleWork();
+}
+
+function pinWork(work) {
+  state.selectionPinned = true;
+  activateWork(work);
+}
+
 function setActiveWork(work) {
   state.activeWorkId = work.id;
   document.querySelectorAll(".work-node").forEach((node) => {
@@ -363,6 +422,7 @@ function setActiveWork(work) {
 function deactivateWork() {
   state.activeWorkId = null;
   state.pointerInsideStage = false;
+  state.selectionPinned = false;
   document.querySelectorAll(".work-node").forEach((node) => node.classList.remove("is-active"));
   resetTitleProximity();
   fadeSpatialAudio();
@@ -376,6 +436,11 @@ function setPreview(work, includeImage) {
       <strong>${escapeHtml(work.title)}</strong>
       <span>${escapeHtml(work.instrumentation)}</span>
     </p>
+    ${work.primaryLink ? `
+      <a class="work-link" href="${escapeAttr(work.primaryLink)}" target="_blank" rel="noopener">
+        Open full work <span aria-hidden="true">&#8599;</span>
+      </a>
+    ` : ""}
   `;
 }
 
