@@ -8,7 +8,6 @@ const state = {
   singleAudio: null,
   singleWorkId: null,
   pointerInsideStage: false,
-  selectionPinned: false,
   audioPoint: { x: 50, y: 50 },
   activeBg: "a",
   activeBgImage: "",
@@ -269,28 +268,35 @@ function pauseSpatialSources() {
 function renderConstellation() {
   const nodes = document.createDocumentFragment();
   state.works.forEach((work) => {
-    const node = document.createElement("button");
+    const hasDesktopLink = state.audioMode === "spatial" && Boolean(work.primaryLink);
+    const node = document.createElement(hasDesktopLink ? "a" : "button");
     node.className = "work-node";
-    node.type = "button";
+    if (hasDesktopLink) {
+      node.href = work.primaryLink;
+      node.target = "_blank";
+      node.rel = "noopener";
+    } else {
+      node.type = "button";
+    }
     node.dataset.id = work.id;
     node.style.setProperty("--x", work.position.x);
     node.style.setProperty("--y", work.position.y);
     node.style.setProperty("--z", work.position.z);
     node.style.setProperty("--z-index", Math.round(work.position.z * 20));
     node.style.setProperty("--proximity-scale", "1");
-    node.setAttribute("aria-label", `${work.title}, ${work.year}. Select this work for listening.`);
+    node.setAttribute(
+      "aria-label",
+      hasDesktopLink
+        ? `${work.title}, ${work.year}. Open full work in a new tab.`
+        : `${work.title}, ${work.year}. Select this work for listening.`
+    );
     node.innerHTML = `<span>${escapeHtml(work.title)}</span>`;
 
     if (state.audioMode === "single") {
       node.addEventListener("click", () => selectSingleWork(work));
     } else {
-      node.addEventListener("mouseenter", () => {
-        if (!state.selectionPinned) {
-          activateWork(work);
-        }
-      });
+      node.addEventListener("mouseenter", () => activateWork(work));
       node.addEventListener("focus", () => activateWork(work));
-      node.addEventListener("click", () => pinWork(work));
       node.addEventListener("blur", () => deactivateWork());
     }
 
@@ -304,11 +310,9 @@ function setupConstellationPointer() {
     const point = getStagePoint(event);
     state.pointerInsideStage = true;
     state.audioPoint = point;
-    if (!state.selectionPinned) {
-      const nearest = findNearestWork(point);
-      if (nearest) {
-        setActiveWork(nearest);
-      }
+    const nearest = findNearestWork(point);
+    if (nearest) {
+      setActiveWork(nearest);
     }
     updateTitleProximity(point);
     updateSpatialTargets();
@@ -316,7 +320,6 @@ function setupConstellationPointer() {
 
   const handleLeave = () => {
     state.pointerInsideStage = false;
-    state.selectionPinned = false;
     document.querySelectorAll(".work-node").forEach((node) => node.classList.remove("is-active"));
     resetTitleProximity();
     fadeSpatialAudio();
@@ -406,11 +409,6 @@ function selectSingleWork(work) {
   playSelectedSingleWork();
 }
 
-function pinWork(work) {
-  state.selectionPinned = true;
-  activateWork(work);
-}
-
 function setActiveWork(work) {
   state.activeWorkId = work.id;
   document.querySelectorAll(".work-node").forEach((node) => {
@@ -422,7 +420,6 @@ function setActiveWork(work) {
 function deactivateWork() {
   state.activeWorkId = null;
   state.pointerInsideStage = false;
-  state.selectionPinned = false;
   document.querySelectorAll(".work-node").forEach((node) => node.classList.remove("is-active"));
   resetTitleProximity();
   fadeSpatialAudio();
@@ -436,7 +433,7 @@ function setPreview(work, includeImage) {
       <strong>${escapeHtml(work.title)}</strong>
       <span>${escapeHtml(work.instrumentation)}</span>
     </p>
-    ${work.primaryLink ? `
+    ${state.audioMode === "single" && work.primaryLink ? `
       <a class="work-link" href="${escapeAttr(work.primaryLink)}" target="_blank" rel="noopener">
         Open full work <span aria-hidden="true">&#8599;</span>
       </a>
