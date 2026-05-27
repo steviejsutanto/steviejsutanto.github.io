@@ -219,7 +219,7 @@ button {
 .constellation-stage {
   position: relative;
   isolation: isolate;
-  min-height: clamp(28rem, 46vw, 38rem);
+  min-height: clamp(24rem, 36vw, 30rem);
   overflow: hidden;
   background: var(--panel);
 }
@@ -273,6 +273,7 @@ button {
   --x: 50;
   --y: 50;
   --z: 0.5;
+  --proximity-scale: 1;
   position: absolute;
   left: calc(var(--x) * 1%);
   top: calc(var(--y) * 1%);
@@ -291,14 +292,16 @@ button {
 }
 
 .work-node span {
+  --label-offset: translate(0, 0);
   display: block;
   padding: 0;
   background: transparent;
   font-size: clamp(0.62rem, 0.8vw, 0.72rem);
   line-height: 1.18;
   text-shadow: 0 0 10px var(--bg), 0 0 18px var(--bg);
-  transform-origin: left center;
-  transition: color 180ms ease, background 180ms ease, transform 180ms ease;
+  transform: var(--label-offset) scale(var(--proximity-scale));
+  transform-origin: center center;
+  transition: color 180ms ease, background 180ms ease, transform 100ms ease-out;
 }
 
 .work-node:hover,
@@ -313,7 +316,6 @@ button {
 .work-node.is-active span {
   color: #ffffff;
   background: transparent;
-  transform: scale(1.22);
 }
 
 .work-node.is-hidden {
@@ -322,8 +324,7 @@ button {
 }
 
 .work-preview {
-  position: sticky;
-  bottom: 0;
+  position: relative;
   z-index: 16;
   display: grid;
   align-content: center;
@@ -500,13 +501,7 @@ button {
   }
 
   .work-node[data-id="music-female-hipster"] span {
-    transform: translate(-1.3rem, -0.85rem);
-  }
-
-  .work-node[data-id="music-female-hipster"]:hover span,
-  .work-node[data-id="music-female-hipster"]:focus-visible span,
-  .work-node[data-id="music-female-hipster"].is-active span {
-    transform: translate(-1.3rem, -0.85rem) scale(1.22);
+    --label-offset: translate(-1.3rem, -0.85rem);
   }
 
   .publication-row {

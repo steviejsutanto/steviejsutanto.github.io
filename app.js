@@ -9,7 +9,7 @@ const state = {
   activeBg: "a",
   activeBgImage: "",
   bgRequestId: 0,
-  bgTarget: 0.18,
+  bgTarget: 0,
   raf: null,
   portfolioVisible: false
 };
@@ -35,6 +35,7 @@ async function init() {
     setupConstellationPointer();
     setupAudio();
     setupScrollAudio();
+    setupWorksNavigation();
     window.addEventListener("resize", debounce(renderLines, 120));
   } catch (error) {
     selectors.preview.innerHTML = `
@@ -95,11 +96,8 @@ function setupAudio() {
         });
       }
       await startSpatialSources();
-      state.bgTarget = state.portfolioVisible ? 0.01 : 0.18;
       updateSpatialTargets();
-      startGainLoop();
     } else {
-      state.bgTarget = 0;
       fadeSpatialAudio();
     }
   });
@@ -125,18 +123,44 @@ function setupScrollAudio() {
     ([entry]) => {
       state.portfolioVisible = entry.isIntersecting;
       if (state.soundEnabled) {
-        state.bgTarget = entry.isIntersecting ? 0.01 : 0.18;
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && state.pointerInsideStage) {
           updateSpatialTargets();
         } else {
           fadeSpatialAudio();
         }
-        startGainLoop();
       }
     },
     { threshold: 0.34 }
   );
   observer.observe(selectors.worksSection);
+}
+
+function setupWorksNavigation() {
+  const alignWorks = () => {
+    if (window.location.hash !== "#works") {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const headerHeight = document.querySelector(".site-header").getBoundingClientRect().height;
+        const sectionTop = selectors.worksSection.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+        const previewBottom = selectors.preview.getBoundingClientRect().bottom + window.scrollY;
+        const previewAlignedTop = previewBottom - window.innerHeight + 16;
+
+        window.scrollTo({
+          top: Math.max(0, sectionTop, previewAlignedTop),
+          behavior: "auto"
+        });
+      });
+    });
+  };
+
+  window.addEventListener("hashchange", alignWorks);
+  window.addEventListener("load", alignWorks);
+  window.addEventListener("pageshow", alignWorks);
+  window.addEventListener("resize", debounce(alignWorks, 120));
+  alignWorks();
 }
 
 function startGainLoop() {
@@ -211,6 +235,7 @@ function renderConstellation() {
     node.style.setProperty("--y", work.position.y);
     node.style.setProperty("--z", work.position.z);
     node.style.setProperty("--z-index", Math.round(work.position.z * 20));
+    node.style.setProperty("--proximity-scale", "1");
     node.setAttribute(
       "aria-label",
       hasFullWorkLink
@@ -229,7 +254,7 @@ function renderConstellation() {
 }
 
 function setupConstellationPointer() {
-  selectors.stage.addEventListener("pointermove", (event) => {
+  const handleMove = (event) => {
     const point = getStagePoint(event);
     state.pointerInsideStage = true;
     state.audioPoint = point;
@@ -237,14 +262,39 @@ function setupConstellationPointer() {
     if (nearest) {
       setActiveWork(nearest);
     }
+    updateTitleProximity(point);
     updateSpatialTargets();
-  });
+  };
 
-  selectors.stage.addEventListener("pointerleave", () => {
+  const handleLeave = () => {
     state.pointerInsideStage = false;
     document.querySelectorAll(".work-node").forEach((node) => node.classList.remove("is-active"));
+    resetTitleProximity();
     fadeSpatialAudio();
-  });
+  };
+
+  const handleDocumentMove = (event) => {
+    if (!state.pointerInsideStage) {
+      return;
+    }
+
+    const rect = selectors.stage.getBoundingClientRect();
+    const outsideStage =
+      event.clientX < rect.left ||
+      event.clientX > rect.right ||
+      event.clientY < rect.top ||
+      event.clientY > rect.bottom;
+    if (outsideStage) {
+      handleLeave();
+    }
+  };
+
+  selectors.stage.addEventListener("pointermove", handleMove);
+  selectors.stage.addEventListener("mousemove", handleMove);
+  selectors.stage.addEventListener("pointerleave", handleLeave);
+  selectors.stage.addEventListener("mouseleave", handleLeave);
+  document.addEventListener("pointermove", handleDocumentMove);
+  document.addEventListener("mousemove", handleDocumentMove);
 }
 
 function renderLines() {
@@ -298,6 +348,7 @@ function activateWork(work) {
     y: work.position.y
   };
   setActiveWork(work);
+  updateTitleProximity(state.audioPoint);
   updateSpatialTargets();
 }
 
@@ -313,6 +364,7 @@ function deactivateWork() {
   state.activeWorkId = null;
   state.pointerInsideStage = false;
   document.querySelectorAll(".work-node").forEach((node) => node.classList.remove("is-active"));
+  resetTitleProximity();
   fadeSpatialAudio();
 }
 
@@ -381,10 +433,29 @@ function fadeSpatialAudio() {
   state.spatialSources.forEach((source) => {
     source.target = 0;
   });
-  if (state.soundEnabled) {
-    state.bgTarget = state.portfolioVisible ? 0.035 : 0.18;
-  }
+  state.bgTarget = 0;
   startGainLoop();
+}
+
+function updateTitleProximity(point) {
+  const rect = selectors.stage.getBoundingClientRect();
+  state.works.forEach((work) => {
+    const node = selectors.stage.querySelector(`.work-node[data-id="${work.id}"]`);
+    if (!node) {
+      return;
+    }
+
+    const radius = getAudioRadius(work, rect);
+    const proximity = clamp(1 - getWorkDistance(point, work, rect) / radius, 0, 1);
+    const easedProximity = proximity * proximity * (3 - 2 * proximity);
+    node.style.setProperty("--proximity-scale", (1 + easedProximity * 0.3).toFixed(3));
+  });
+}
+
+function resetTitleProximity() {
+  document.querySelectorAll(".work-node").forEach((node) => {
+    node.style.setProperty("--proximity-scale", "1");
+  });
 }
 
 function getSpatialWeights(point) {
