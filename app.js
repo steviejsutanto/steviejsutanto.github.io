@@ -92,6 +92,18 @@ function setupCarousels() {
       slides.forEach((slide) => {
         slide.style.opacity = "";
         slide.style.transform = "";
+        slide.classList.remove("is-drag-active", "is-drag-target");
+      });
+    };
+
+    const resetSlideStylesInstantly = () => {
+      slides.forEach((slide) => {
+        slide.style.transition = "none";
+      });
+      resetSlideStyles();
+      void carousel.offsetWidth;
+      slides.forEach((slide) => {
+        slide.style.transition = "";
       });
     };
 
@@ -118,7 +130,7 @@ function setupCarousels() {
     const finishDragSettle = (index) => {
       clearSettle();
       setActiveSlide(index);
-      resetSlideStyles();
+      resetSlideStylesInstantly();
     };
 
     const settleDrag = (targetIndex, deltaX, shouldCommit) => {
@@ -133,6 +145,8 @@ function setupCarousels() {
       }
 
       carousel.classList.add("is-settling");
+      activeSlide.classList.add("is-drag-active");
+      targetSlide.classList.add("is-drag-target");
       activeSlide.style.opacity = "1";
       targetSlide.style.opacity = "1";
       if (!targetSlide.style.transform) {
@@ -206,13 +220,18 @@ function setupCarousels() {
         dragTargetIndex = (activeIndex + direction + slides.length) % slides.length;
         slides.forEach((slide, slideIndex) => {
           if (slideIndex === activeIndex) {
+            slide.classList.add("is-drag-active");
+            slide.classList.remove("is-drag-target");
             slide.style.opacity = "1";
             slide.style.transform = `translateX(${clampedDelta}px)`;
           } else if (slideIndex === dragTargetIndex) {
             const targetOffset = clampedDelta + (clampedDelta < 0 ? width : -width);
+            slide.classList.add("is-drag-target");
+            slide.classList.remove("is-drag-active");
             slide.style.opacity = "1";
             slide.style.transform = `translateX(${targetOffset}px)`;
           } else {
+            slide.classList.remove("is-drag-active", "is-drag-target");
             slide.style.opacity = "0";
             slide.style.transform = "";
           }

@@ -238,6 +238,15 @@ button {
 
 .carousel-slide.is-active {
   opacity: 1;
+  z-index: 1;
+}
+
+.carousel-slide.is-drag-target {
+  z-index: 1;
+}
+
+.carousel-slide.is-drag-active {
+  z-index: 2;
 }
 
 .image-carousel.is-dragging {
