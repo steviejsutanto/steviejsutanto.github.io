@@ -80,6 +80,13 @@ function setupCarousels() {
     let dragging = false;
     let horizontalDrag = false;
     let dragTargetIndex = activeIndex;
+    let settleTimer = 0;
+
+    const clearSettle = () => {
+      window.clearTimeout(settleTimer);
+      settleTimer = 0;
+      carousel.classList.remove("is-settling");
+    };
 
     const resetSlideStyles = () => {
       slides.forEach((slide) => {
@@ -88,11 +95,8 @@ function setupCarousels() {
       });
     };
 
-    const showSlide = (index, resetStyles = true) => {
+    const setActiveSlide = (index) => {
       activeIndex = (index + slides.length) % slides.length;
-      if (resetStyles) {
-        resetSlideStyles();
-      }
       slides.forEach((slide, slideIndex) => {
         slide.classList.toggle("is-active", slideIndex === activeIndex);
       });
@@ -101,6 +105,54 @@ function setupCarousels() {
         dot.classList.toggle("is-active", isActive);
         dot.setAttribute("aria-pressed", String(isActive));
       });
+    };
+
+    const showSlide = (index, resetStyles = true) => {
+      clearSettle();
+      if (resetStyles) {
+        resetSlideStyles();
+      }
+      setActiveSlide(index);
+    };
+
+    const finishDragSettle = (index) => {
+      clearSettle();
+      setActiveSlide(index);
+      resetSlideStyles();
+    };
+
+    const settleDrag = (targetIndex, deltaX, shouldCommit) => {
+      const width = Math.max(1, carousel.getBoundingClientRect().width);
+      const direction = deltaX < 0 ? 1 : -1;
+      const activeSlide = slides[activeIndex];
+      const targetSlide = slides[targetIndex];
+      const targetStart = direction * width;
+      if (!activeSlide || !targetSlide || targetIndex === activeIndex) {
+        resetSlideStyles();
+        return;
+      }
+
+      carousel.classList.add("is-settling");
+      activeSlide.style.opacity = "1";
+      targetSlide.style.opacity = "1";
+      if (!targetSlide.style.transform) {
+        targetSlide.style.transform = `translateX(${targetStart + deltaX}px)`;
+      }
+
+      requestAnimationFrame(() => {
+        activeSlide.style.transform = shouldCommit ? `translateX(${-direction * width}px)` : "translateX(0)";
+        targetSlide.style.transform = shouldCommit ? "translateX(0)" : `translateX(${targetStart}px)`;
+      });
+
+      dots.forEach((dot, dotIndex) => {
+        const isActive = dotIndex === (shouldCommit ? targetIndex : activeIndex);
+        dot.classList.toggle("is-active", isActive);
+        dot.setAttribute("aria-pressed", String(isActive));
+      });
+
+      settleTimer = window.setTimeout(() => {
+        finishDragSettle(shouldCommit ? targetIndex : activeIndex);
+      }, 360);
     };
 
     dots.forEach((dot, index) => {
@@ -124,6 +176,7 @@ function setupCarousels() {
       if (event.button !== 0 && event.pointerType !== "touch") {
         return;
       }
+      clearSettle();
       dragging = true;
       horizontalDrag = false;
       dragPointerId = event.pointerId;
@@ -151,7 +204,6 @@ function setupCarousels() {
         const clampedDelta = clamp(deltaX, -width, width);
         const direction = clampedDelta < 0 ? 1 : -1;
         dragTargetIndex = (activeIndex + direction + slides.length) % slides.length;
-        const progress = Math.min(1, Math.abs(clampedDelta) / width);
         slides.forEach((slide, slideIndex) => {
           if (slideIndex === activeIndex) {
             slide.style.opacity = "1";
@@ -180,11 +232,15 @@ function setupCarousels() {
       if (carousel.hasPointerCapture(event.pointerId)) {
         carousel.releasePointerCapture(event.pointerId);
       }
-      if (horizontalDrag && Math.abs(deltaX) > Math.max(34, carousel.getBoundingClientRect().width * 0.16)) {
-        showSlide(dragTargetIndex);
-      } else {
+      if (!horizontalDrag) {
         resetSlideStyles();
+        return;
       }
+      settleDrag(
+        dragTargetIndex,
+        deltaX,
+        Math.abs(deltaX) > Math.max(34, carousel.getBoundingClientRect().width * 0.16)
+      );
     };
 
     carousel.addEventListener("pointerup", stopDragging);

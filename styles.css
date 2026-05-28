@@ -293,6 +293,8 @@ button {
 .constellation-stage {
   position: relative;
   isolation: isolate;
+  margin-top: clamp(0.35rem, 0.9vw, 0.65rem);
+  border-top: 1px solid rgba(231, 227, 216, 0.08);
   min-height: clamp(24rem, 36vw, 30rem);
   overflow: hidden;
   background: var(--panel);
