@@ -13,7 +13,7 @@ window.PORTFOLIO_WORKS = [
       "multichannel"
     ],
     "excerptSrc": "assets/audio/my-computers-interpretation-of-falling-excerpt.mp3",
-    "imageSrc": "assets/images/stevie-6.webp",
+    "imageSrc": "assets/images/my-computers-interpretation-of-falling.webp",
     "primaryLink": "https://audiospace.soundingfuture.com/tracks/my-computer-s-interpretation-of-falling",
     "externalLinks": {
       "website": "https://www.steviejsutanto.com"
@@ -107,7 +107,7 @@ window.PORTFOLIO_WORKS = [
       "ensemble"
     ],
     "excerptSrc": "assets/audio/a-sketch-of-two-excerpt.mp3",
-    "imageSrc": "assets/images/stevie-2.webp",
+    "imageSrc": "assets/images/a-sketch-of-two.webp",
     "primaryLink": "https://soundcloud.com/steviesutanto/a-sketch-of-two?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing",
     "externalLinks": {
       "website": "https://www.steviejsutanto.com"
@@ -235,7 +235,7 @@ window.PORTFOLIO_WORKS = [
       "commission"
     ],
     "excerptSrc": "assets/audio/kultur-destruktif-excerpt.mp3",
-    "imageSrc": "assets/images/mata-dan-senar.webp",
+    "imageSrc": "assets/images/stevie-2.webp",
     "primaryLink": "https://soundcloud.com/steviesutanto/kultur-destruktif?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing",
     "externalLinks": {
       "website": "https://www.steviejsutanto.com"
@@ -266,7 +266,7 @@ window.PORTFOLIO_WORKS = [
       "string quartet"
     ],
     "excerptSrc": "assets/audio/kultur-antarmuka-excerpt.mp3",
-    "imageSrc": "assets/images/in-memory-1.webp",
+    "imageSrc": "assets/images/stevie-1.webp",
     "primaryLink": "https://soundcloud.com/steviesutanto/kultur-antarmuka?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing",
     "externalLinks": {
       "website": "https://www.steviejsutanto.com"

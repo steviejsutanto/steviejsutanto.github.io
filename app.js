@@ -43,6 +43,7 @@ async function init() {
       setupScrollAudio();
     }
     setupHashNavigation();
+    setupCarousels();
     window.addEventListener("resize", debounce(renderLines, 120));
   } catch (error) {
     selectors.preview.innerHTML = `
@@ -62,6 +63,31 @@ async function loadWorks() {
     throw new Error(`Could not load works manifest: ${response.status}`);
   }
   return response.json();
+}
+
+function setupCarousels() {
+  document.querySelectorAll("[data-carousel]").forEach((carousel) => {
+    const slides = [...carousel.querySelectorAll(".carousel-slide")];
+    const dots = [...carousel.querySelectorAll(".carousel-dot")];
+    if (slides.length < 2 || slides.length !== dots.length) {
+      return;
+    }
+
+    const showSlide = (index) => {
+      slides.forEach((slide, slideIndex) => {
+        slide.classList.toggle("is-active", slideIndex === index);
+      });
+      dots.forEach((dot, dotIndex) => {
+        const isActive = dotIndex === index;
+        dot.classList.toggle("is-active", isActive);
+        dot.setAttribute("aria-pressed", String(isActive));
+      });
+    };
+
+    dots.forEach((dot, index) => {
+      dot.addEventListener("click", () => showSlide(index));
+    });
+  });
 }
 
 function setupAudio() {
