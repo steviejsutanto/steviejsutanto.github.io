@@ -198,7 +198,7 @@ button {
 }
 
 .portfolio-page {
-  padding: clamp(1rem, 2.6vw, 2.25rem) 0 4rem;
+  padding: clamp(0.65rem, 1.8vw, 1.45rem) 0 4rem;
 }
 
 .portfolio-grid {
@@ -218,6 +218,7 @@ button {
 .image-carousel {
   position: relative;
   isolation: isolate;
+  touch-action: pan-y;
 }
 
 .carousel-slide {
@@ -230,11 +231,21 @@ button {
   object-fit: cover;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 420ms ease;
+  transform: translateX(0);
+  transition: opacity 420ms ease, transform 320ms ease;
+  will-change: opacity, transform;
 }
 
 .carousel-slide.is-active {
   opacity: 1;
+}
+
+.image-carousel.is-dragging {
+  cursor: grabbing;
+}
+
+.image-carousel.is-dragging .carousel-slide {
+  transition: none;
 }
 
 .image-rail .carousel-slide {
@@ -297,7 +308,7 @@ button {
 .constellation-bg {
   --work-image: none;
   position: absolute;
-  inset: -8%;
+  inset: -12%;
   z-index: 0;
   opacity: 0;
   pointer-events: none;

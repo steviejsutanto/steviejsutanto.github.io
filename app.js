@@ -31,6 +31,7 @@ const selectors = {
 init();
 
 async function init() {
+  setupCarousels();
   try {
     state.works = await loadWorks();
     selectors.stage.dataset.audioMode = state.audioMode;
@@ -43,7 +44,6 @@ async function init() {
       setupScrollAudio();
     }
     setupHashNavigation();
-    setupCarousels();
     window.addEventListener("resize", debounce(renderLines, 120));
   } catch (error) {
     selectors.preview.innerHTML = `
@@ -72,20 +72,127 @@ function setupCarousels() {
     if (slides.length < 2 || slides.length !== dots.length) {
       return;
     }
+    let activeIndex = Math.max(0, slides.findIndex((slide) => slide.classList.contains("is-active")));
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragLastX = 0;
+    let dragPointerId = null;
+    let dragging = false;
+    let horizontalDrag = false;
+    let dragTargetIndex = activeIndex;
 
-    const showSlide = (index) => {
+    const resetSlideStyles = () => {
+      slides.forEach((slide) => {
+        slide.style.opacity = "";
+        slide.style.transform = "";
+      });
+    };
+
+    const showSlide = (index, resetStyles = true) => {
+      activeIndex = (index + slides.length) % slides.length;
+      if (resetStyles) {
+        resetSlideStyles();
+      }
       slides.forEach((slide, slideIndex) => {
-        slide.classList.toggle("is-active", slideIndex === index);
+        slide.classList.toggle("is-active", slideIndex === activeIndex);
       });
       dots.forEach((dot, dotIndex) => {
-        const isActive = dotIndex === index;
+        const isActive = dotIndex === activeIndex;
         dot.classList.toggle("is-active", isActive);
         dot.setAttribute("aria-pressed", String(isActive));
       });
     };
 
     dots.forEach((dot, index) => {
-      dot.addEventListener("click", () => showSlide(index));
+      dot.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+      dot.addEventListener("pointerup", (event) => {
+        event.stopPropagation();
+        showSlide(index);
+      });
+      dot.addEventListener("click", (event) => {
+        event.stopPropagation();
+        showSlide(index);
+      });
+    });
+
+    carousel.addEventListener("pointerdown", (event) => {
+      if (event.target.closest(".carousel-dot")) {
+        return;
+      }
+      if (event.button !== 0 && event.pointerType !== "touch") {
+        return;
+      }
+      dragging = true;
+      horizontalDrag = false;
+      dragPointerId = event.pointerId;
+      dragTargetIndex = activeIndex;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      dragLastX = event.clientX;
+      carousel.classList.add("is-dragging");
+      carousel.setPointerCapture(event.pointerId);
+    });
+
+    carousel.addEventListener("pointermove", (event) => {
+      if (!dragging) {
+        return;
+      }
+      const rect = carousel.getBoundingClientRect();
+      const deltaX = event.clientX - dragStartX;
+      const deltaY = event.clientY - dragStartY;
+      dragLastX = event.clientX;
+      if (!horizontalDrag && Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+        horizontalDrag = true;
+      }
+      if (horizontalDrag) {
+        const width = Math.max(1, rect.width);
+        const clampedDelta = clamp(deltaX, -width, width);
+        const direction = clampedDelta < 0 ? 1 : -1;
+        dragTargetIndex = (activeIndex + direction + slides.length) % slides.length;
+        const progress = Math.min(1, Math.abs(clampedDelta) / width);
+        slides.forEach((slide, slideIndex) => {
+          if (slideIndex === activeIndex) {
+            slide.style.opacity = "1";
+            slide.style.transform = `translateX(${clampedDelta}px)`;
+          } else if (slideIndex === dragTargetIndex) {
+            const targetOffset = clampedDelta + (clampedDelta < 0 ? width : -width);
+            slide.style.opacity = "1";
+            slide.style.transform = `translateX(${targetOffset}px)`;
+          } else {
+            slide.style.opacity = "0";
+            slide.style.transform = "";
+          }
+        });
+        event.preventDefault();
+      }
+    });
+
+    const stopDragging = (event) => {
+      if (!dragging) {
+        return;
+      }
+      const deltaX = (Number.isFinite(event.clientX) ? event.clientX : dragLastX) - dragStartX;
+      dragging = false;
+      dragPointerId = null;
+      carousel.classList.remove("is-dragging");
+      if (carousel.hasPointerCapture(event.pointerId)) {
+        carousel.releasePointerCapture(event.pointerId);
+      }
+      if (horizontalDrag && Math.abs(deltaX) > Math.max(34, carousel.getBoundingClientRect().width * 0.16)) {
+        showSlide(dragTargetIndex);
+      } else {
+        resetSlideStyles();
+      }
+    };
+
+    carousel.addEventListener("pointerup", stopDragging);
+    carousel.addEventListener("pointercancel", stopDragging);
+    carousel.addEventListener("lostpointercapture", (event) => {
+      if (dragPointerId === event.pointerId) {
+        stopDragging(event);
+      }
     });
   });
 }
