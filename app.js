@@ -18,6 +18,7 @@ const state = {
 };
 
 const selectors = {
+  wordmark: document.querySelector(".wordmark"),
   soundToggle: document.querySelector("#soundToggle"),
   stage: document.querySelector("#constellationStage"),
   bgA: document.querySelector(".constellation-bg.bg-a"),
@@ -41,7 +42,7 @@ async function init() {
       setupConstellationPointer();
       setupScrollAudio();
     }
-    setupWorksNavigation();
+    setupHashNavigation();
     window.addEventListener("resize", debounce(renderLines, 120));
   } catch (error) {
     selectors.preview.innerHTML = `
@@ -183,7 +184,20 @@ function setupScrollAudio() {
   observer.observe(selectors.worksSection);
 }
 
-function setupWorksNavigation() {
+function setupHashNavigation() {
+  const alignHome = () => {
+    if (window.location.hash !== "#home") {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "auto"
+      });
+    });
+  };
+
   const alignWorks = () => {
     if (window.location.hash !== "#works") {
       return;
@@ -204,11 +218,28 @@ function setupWorksNavigation() {
     });
   };
 
-  window.addEventListener("hashchange", alignWorks);
-  window.addEventListener("load", alignWorks);
-  window.addEventListener("pageshow", alignWorks);
-  window.addEventListener("resize", debounce(alignWorks, 120));
-  alignWorks();
+  const alignCurrentHash = () => {
+    alignHome();
+    alignWorks();
+  };
+
+  selectors.wordmark.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    event.preventDefault();
+    if (window.location.hash !== "#home") {
+      history.pushState(null, "", "#home");
+    }
+    alignHome();
+  });
+
+  window.addEventListener("hashchange", alignCurrentHash);
+  window.addEventListener("load", alignCurrentHash);
+  window.addEventListener("pageshow", alignCurrentHash);
+  window.addEventListener("resize", debounce(alignCurrentHash, 120));
+  alignCurrentHash();
 }
 
 function startGainLoop() {
