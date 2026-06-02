@@ -258,7 +258,7 @@ button {
 }
 
 .image-rail .carousel-slide {
-  filter: grayscale(1) contrast(1.08) brightness(0.72);
+  filter: grayscale(1) contrast(1.22) brightness(0.9);
 }
 
 .image-rail .carousel-slide:first-of-type {
@@ -324,10 +324,10 @@ button {
   opacity: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 52% 48%, rgba(255, 255, 255, 0.06), transparent 21rem),
-    linear-gradient(rgba(8, 8, 8, 0.82), rgba(8, 8, 8, 0.92)),
+    radial-gradient(circle at 52% 48%, rgba(255, 255, 255, 0.08), transparent 21rem),
+    linear-gradient(rgba(8, 8, 8, 0.66), rgba(8, 8, 8, 0.82)),
     var(--work-image) center / cover no-repeat;
-  filter: grayscale(1) brightness(0.7) contrast(1.08);
+  filter: grayscale(1) brightness(0.84) contrast(1.16) blur(5px);
   transition: opacity 900ms ease;
 }
 
